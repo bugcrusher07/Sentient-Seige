@@ -13,94 +13,114 @@ public class CharacterScript : MonoBehaviour
     [SerializeField] private float xSensivity = 30f;
     [SerializeField] private float ySensivity = 30f;
 
-    [SerializeField] private Transform cameraTransform;
     [SerializeField] private Camera mainCamera;
-    // [SerializeField] private CharacterController controller;
+    [SerializeField] private Animator characterAnimator;
+    [SerializeField] private GameObject crosshair;
 
     private Vector2 inputDirection;
     private Vector3 characterMoveDirection;
     private Vector2 lookDirection;
 
-
     private bool isFired;
     private bool isMoving;
     private bool isLooking;
 
-    private float movingSpeed= 0.3f;
+    private float movingSpeed = 9f;
     private float xRotation = 0.0f;
 
-
-    public void  ProcessLook(Vector2 input){
+    public void ProcessLook(Vector2 input)
+    {
         float mouseX = input.x;
         float mouseY = input.y;
 
-        xRotation -= (mouseY*Time.deltaTime)*ySensivity;
-        xRotation = Mathf.Clamp(xRotation,-80f,80f);
-        mainCamera.transform.localRotation = Quaternion.Euler(xRotation,0f,0f);
-        transform.Rotate(Vector3.up* (mouseX*Time.deltaTime)*xSensivity);
+        xRotation -= (mouseY * Time.deltaTime) * ySensivity;
+        xRotation = Mathf.Clamp(xRotation, -30f, 30f);
+        mainCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        transform.Rotate(Vector3.up * (mouseX * Time.deltaTime) * xSensivity);
     }
+
     void OnEnable()
     {
-       moveAction.action.Enable();
-       fireAction.action.Enable();
-       lookAction.action.Enable();
+        moveAction.action.Enable();
+        fireAction.action.Enable();
+        lookAction.action.Enable();
     }
+
     void OnDisable()
     {
-
-       moveAction.action.Disable();
-       fireAction.action.Disable();
-       lookAction.action.Disable();
+        moveAction.action.Disable();
+        fireAction.action.Disable();
+        lookAction.action.Disable();
     }
 
-    void CaptureInput(){
-
+    void CaptureInput()
+    {
         inputDirection = moveAction.action.ReadValue<Vector2>();
-        characterMoveDirection= new Vector3(inputDirection.x,0f,inputDirection.y);
-        if (inputDirection!= Vector2.zero){
-            Debug.Log($"yeah we moving{characterMoveDirection} ");
-            isMoving =true;
-        } else{
-            isMoving = false;
+
+        // Convert 2D input to 3D vector (X and Z, Y is 0)
+        characterMoveDirection = new Vector3(inputDirection.x, 0f, inputDirection.y);
+
+        // Normalize to prevent faster diagonal movement
+        if (characterMoveDirection.magnitude > 1)
+        {
+            characterMoveDirection.Normalize();
         }
+
+        isMoving = inputDirection != Vector2.zero;
         isFired = fireAction.action.ReadValue<float>() > 0;
         lookDirection = lookAction.action.ReadValue<Vector2>();
-        if( lookDirection != Vector2.zero){
-            isLooking = true;
-        }else{
-            isLooking = false;
-        }
-    }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        // controller = GetComponent<CharacterController>();
+        isLooking = lookDirection != Vector2.zero;
     }
 
-    // Update is called once per frame
     void Update()
     {
         CaptureInput();
+        // Handle animations
+                if (characterAnimator != null)
+        {
+            // characterAnimator.SetBool("Run_guard_AR", isMovingAni);
+            characterAnimator.SetBool("isShootingAni", isFired);
+            characterAnimator.SetBool("walkAndShoot", isMoving && isFired);
+            characterAnimator.SetBool("isIdleAni",!isMoving);
+            // Optional: Blend tree for movement speed
+            // characterAnimator.SetFloat("MoveSpeed", characterMoveDirection.magnitude);
+            // if( isMoving == true){
+            characterAnimator.SetBool("WalkingForward",inputDirection.y> 0.1f);
+            characterAnimator.SetBool("WalkingBackward", inputDirection.y < -0.1f); // S key
+            characterAnimator.SetBool("StrafingLeft", inputDirection.x < -0.1f); // A key
+            characterAnimator.SetBool("StrafingRight", inputDirection.x > 0.1f);
+            // }
+        }
+
     }
 
     void FixedUpdate()
     {
-        if ( isMoving == true){
-            transform.position += characterMoveDirection*movingSpeed;
-            // mainCamera.transform.position += characterMoveDirection*movingSpeed;
-            Debug.Log("character is moving");
-        }
-        if( isFired==true ){
-            Debug.Log("we firing bruh");
+        if (isMoving)
+        {
+            // Transform the movement direction from local to world space based on character's rotation
+            Vector3 worldDirection = transform.TransformDirection(characterMoveDirection);
+
+            // Move in world space
+            transform.position += worldDirection * movingSpeed * Time.fixedDeltaTime;
+            Debug.Log("we moving bruh");
         }
 
+        if (isFired)
+        {
+            Debug.Log("we firing bruh");
+        }
     }
 
     void LateUpdate()
     {
-        if ( isLooking == true){
+        if (isLooking)
+        {
             ProcessLook(lookDirection);
-
         }
+
+
+
+
     }
 }
